@@ -89,14 +89,6 @@
         
         input[type=range] { width: 100%; accent-color: var(--text-main); background: #cbd5e1; height: 5px; border-radius: 3px; outline: none; border: none; }
         
-        .file-upload-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 11px;}
-        .file-upload-row input[type=file] { width: 150px; font-size: 11px; color: var(--text-muted);}
-        .file-upload-row input[type=file]::file-selector-button {
-            padding: 3px 6px; border-radius: 4px; border: 1px solid var(--border);
-            background: var(--btn-neutral); color: var(--text-main); cursor: pointer; transition: 0.2s;
-        }
-        .file-upload-row input[type=file]::file-selector-button:hover { background: var(--btn-neutral-hover); }
-
         .btn-group { display: flex; gap: 8px; margin-top: 8px; }
         button {
             flex: 1; padding: 8px 0; border: 1.5px solid var(--text-main); border-radius: 6px;
@@ -173,7 +165,7 @@
         <div id="message-layer">游戏结束</div>
     </div>
 
-    <!-- 右侧简易控制面板 -->
+    <!-- 右侧控制面板 -->
     <div id="control-panel">
         <div class="panel-section">
             <h3>控制台 (Admin Panel)</h3>
@@ -204,37 +196,6 @@
             </div>
         </div>
 
-        <div class="panel-section">
-            <h3>自定义外观 (Custom Assets)</h3>
-            <div class="control-row" style="margin-bottom: 4px;">
-                <div class="control-row-header"><span>抠图容差 (剔除亮度)</span><span id="val-chroma" class="value">210</span></div>
-                <input type="range" id="slider-chroma" min="150" max="250" step="1" value="210">
-            </div>
-            <div class="file-upload-row">
-                <span>上传国王图标:</span>
-                <input type="file" accept="image/*" onchange="AssetEngine.processFile(this, 'king')">
-            </div>
-            <div class="file-upload-row">
-                <span>上传普通怪物:</span>
-                <input type="file" accept="image/*" onchange="AssetEngine.processFile(this, 'enemy0')">
-            </div>
-            <div class="file-upload-row">
-                <span>上传奥术技能:</span>
-                <input type="file" accept="image/*" onchange="AssetEngine.processFile(this, 'skillArcane')">
-            </div>
-            <div class="file-upload-row">
-                <span>上传火球技能:</span>
-                <input type="file" accept="image/*" onchange="AssetEngine.processFile(this, 'skillFireball')">
-            </div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">
-                💡 <b>提示：</b>若放置在 GitHub 仓库中，可在同级目录下直接命名并放置图片（支持自动载入抠图）：
-                <br>• 国王：<code>king.png</code> 
-                <br>• 怪物：<code>enemy.png</code>
-                <br>• 奥术：<code>arcane.png</code>
-                <br>• 火球：<code>fireball.png</code>
-            </div>
-        </div>
-
         <div class="panel-section" style="flex-grow: 1;">
             <h3>实时技能树</h3>
             <div id="skill-status">等待战斗爆发升级...</div>
@@ -247,15 +208,15 @@
  * 严谨白墨版塔防
  */
 
-// --- 强化抠图处理引擎 (重点重构简笔画自适应强化) ---
+// --- 抠图&图片加载引擎 ---
 const AssetEngine = {
     images: {
         king: null, enemy0: null, enemy1: null, enemy2: null,
         skillArcane: null, skillFireball: null
     },
-    chromaThreshold: 210, // 低于此灰度值的深色像素将被强势保护
+    chromaThreshold: 210,
 
-    // 自动扫描同目录下的默认预设图片
+    // 自动加载本地默认图片
     initDefaults() {
         const defaults = {
             king: 'king.png',
@@ -268,23 +229,9 @@ const AssetEngine = {
             img.onload = () => {
                 this.removeBackground(img, key);
             };
-            img.onerror = () => {
-                // 如果图片未在同目录下找到，不崩溃，正常使用默认简笔线绘效果
-            };
+            img.onerror = () => {};
             img.src = defaults[key];
         }
-    },
-
-    processFile(inputElement, key) {
-        const file = inputElement.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => this.removeBackground(img, key);
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
     },
 
     removeBackground(img, key) {
@@ -300,20 +247,16 @@ const AssetEngine = {
             
             for(let i=0; i<data.length; i+=4) {
                 let r = data[i], g = data[i+1], b = data[i+2];
-                
-                // 计算像素亮度 (灰度公式)
                 let brightness = 0.299 * r + 0.587 * g + 0.114 * b;
                 
                 if(brightness >= threshold) {
-                    // 如果是白色或高亮背景，强制设为全透明
                     data[i+3] = 0; 
                 } else {
-                    // 如果是深色线条（简笔画核心），强制调暗对比度，确保在浅色背景上极易辨识
-                    let scale = 0.7; // 增强黑线饱和度
+                    let scale = 0.7;
                     data[i] = Math.max(0, r * scale);
                     data[i+1] = Math.max(0, g * scale);
                     data[i+2] = Math.max(0, b * scale);
-                    data[i+3] = 255; // 确保完全不透明
+                    data[i+3] = 255;
                 }
             }
             ctx.putImageData(imgData, 0, 0);
@@ -322,9 +265,7 @@ const AssetEngine = {
             finalImg.src = cvs.toDataURL();
             this.images[key] = finalImg;
         } catch (e) {
-            // 防崩溃沙箱：当在本地 file:// 协议运行时，Canvas 访问像素会受跨域安全限制。
-            // 此时直接使用原图，避免报错卡死，并发出警告提示。
-            console.warn("由于浏览器沙箱安全限制，无法进行抠图处理（这通常发生在本地直接双击打开 HTML 时）。部署到服务器/GitHub Pages 后功能将完全正常：", e);
+            console.warn("Canvas 跨域限制，直接使用原图", e);
             this.images[key] = img;
         }
         
@@ -341,7 +282,7 @@ const AssetEngine = {
 const C = {
     W: 440, H: 680,
     PLAYER_RADIUS: 20,
-    PLAYER_Y: 610, // 底部安全距离
+    PLAYER_Y: 610,
     MAX_LEVEL: 20
 };
 
@@ -404,7 +345,7 @@ class FloatingText {
     update(dt) { this.y += this.vy * dt; this.life -= dt; }
     draw(ctx) {
         ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
-        ctx.fillStyle = '#0f172a'; // 统一使用深色文字以适配白色背景
+        ctx.fillStyle = '#0f172a';
         ctx.font = `bold ${this.size}px monospace`;
         ctx.fillText(this.text, this.x, this.y);
         ctx.globalAlpha = 1.0;
@@ -425,7 +366,7 @@ class Enemy {
         this.baseSpeed = baseSpd;
         this.speed = this.baseSpeed;
         
-        this.color = ['#64748b', '#0f172a', '#000000'][type]; // 单色水墨风格配色
+        this.color = ['#64748b', '#0f172a', '#000000'][type];
         this.xpVal = [10, 50, 500][type]; this.dmgToPlayer = [50, 150, 500][type];
         
         this.slowTimer = 0; this.vulnerable = 0; this.marked = false;
@@ -475,12 +416,10 @@ class Enemy {
             }
             ctx.drawImage(img, this.x - size/2, this.y - size/2, size, size);
         } else {
-            // 水墨描边线稿风格
             ctx.fillStyle = this.slowTimer > 0 ? '#e0f2fe' : '#ffffff';
             ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.stroke();
             
-            // 简易内环丰富质感
             ctx.beginPath(); ctx.arc(this.x, this.y, this.r * 0.4, 0, Math.PI*2); ctx.stroke();
         }
         
@@ -505,9 +444,9 @@ class Projectile {
         if(type === 'arcane') bDmg *= (1 + State.skills.damage * 0.2);
         
         this.damage = configOverrides.damage || bDmg;
-        this.speed = type === 'arcane' ? 8.5 : 5.0; // 提升直射弹道速度
+        this.speed = type === 'arcane' ? 8.5 : 5.0;
         this.r = type === 'arcane' ? 4 : (8 + State.skills.fireball * 2.0);
-        this.color = type === 'arcane' ? '#0f172a' : '#e11d48'; // 契合黑白色调
+        this.color = type === 'arcane' ? '#0f172a' : '#e11d48';
         
         this.vx = Math.cos(angle) * this.speed; this.vy = Math.sin(angle) * this.speed;
         this.life = 300; 
@@ -522,7 +461,6 @@ class Projectile {
     }
 
     update(dt) {
-        // [已移除物理跟踪 Homing 效果，改为流畅的纯直向抛射运动]
         this.x += this.vx * dt; this.y += this.vy * dt; this.life -= dt;
         
         if(this.type === 'arcane' && this.bounceLeft > 0) {
@@ -548,7 +486,6 @@ class Projectile {
         ctx.fillStyle = this.color;
         ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
         
-        // 极简风虚化拖尾
         ctx.globalAlpha = 0.25;
         ctx.beginPath(); ctx.arc(this.x - this.vx * 0.6, this.y - this.vy * 0.6, this.r * 0.8, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1.0;
@@ -652,15 +589,12 @@ class Player {
             ctx.drawImage(AssetEngine.images.king, this.x - imgSize/2, this.y - imgSize/2, imgSize, imgSize);
             this.shootY = this.y - imgSize/2;
         } else {
-            // 极简墨绘风线稿国王
             ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
             ctx.fillStyle = '#ffffff';
             
-            // 绘制防线基座
             ctx.fillRect(this.x - 20, this.y, 40, C.H - this.y);
             ctx.strokeRect(this.x - 20, this.y, 40, C.H - this.y);
             
-            // 城堡顶
             ctx.beginPath();
             ctx.moveTo(this.x - 16, this.y); ctx.lineTo(this.x - 16, this.y - 14);
             ctx.lineTo(this.x - 8, this.y - 6); ctx.lineTo(this.x, this.y - 18);
@@ -668,14 +602,13 @@ class Player {
             ctx.lineTo(this.x + 16, this.y); ctx.closePath();
             ctx.fill(); ctx.stroke();
             
-            // 法球核心
             ctx.beginPath(); ctx.arc(this.x, this.y + 6, this.r * 0.7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             this.shootY = this.y - 18; 
         }
     }
 }
 
-// --- 游戏物理引擎核心 ---
+// --- 游戏引擎核心 ---
 const Engine = {
     canvas: null, ctx: null, player: null, entities: { enemies: [], projectiles: [], particles: [], texts: [] }, spawnTimer: 0,
 
@@ -685,9 +618,7 @@ const Engine = {
         State.reset(); this.player = new Player();
         UI.initBindings();
         
-        // 启动时初始化加载同目录默认本地图
         AssetEngine.initDefaults();
-        
         requestAnimationFrame(t => this.loop(t));
     },
 
@@ -728,141 +659,175 @@ const Engine = {
             let p = this.entities.projectiles[i]; let hit = false;
             for(let j=0; j<this.entities.enemies.length; j++) {
                 let e = this.entities.enemies[j];
-                if(MathUtil.dist(p, e) < p.r + e.r) { if(p.onHit(e)) { hit = true; break; } }
+                if(MathUtil.dist(p, e) < p.r + e.r) {
+                    hit = p.onHit(e);
+                    if(hit) break;
+                }
             }
-            if(hit || p.life <= 0 || p.y > C.H) { if(!hit && p.type === 'arcane') p.triggerDestroy(); this.entities.projectiles.splice(i, 1); }
+            if(p.life <= 0 || hit) this.entities.projectiles.splice(i,1);
         }
 
         for(let i=this.entities.enemies.length-1; i>=0; i--) {
             let e = this.entities.enemies[i];
-            if(e.y + e.r > C.PLAYER_Y - 10) {
-                State.hp -= e.dmgToPlayer; this.entities.enemies.splice(i, 1); UI.updateHUD();
-                Engine.createExplosion(C.W/2, C.PLAYER_Y, '#ef4444', 25);
-                if(State.hp <= 0) UI.gameOver(false);
+            if(e.y + e.r >= C.PLAYER_Y - C.PLAYER_RADIUS) {
+                State.hp -= e.dmgToPlayer;
+                Engine.createExplosion(e.x, e.y, '#ef4444', 15);
+                this.entities.enemies.splice(i,1);
+                UI.updateHUD();
+                if(State.hp <= 0) UI.gameOver();
             }
+            if(e.hp <= 0) this.entities.enemies.splice(i,1);
         }
     },
 
-    update(dt) {
-        if(!State.running || State.paused) return;
-        let actualDt = dt * State.modSpeed; State.frames += actualDt; State.time = Math.floor(State.frames / 60);
-        
-        let newLevel = Math.floor(State.time / 30) + 1;
-        if(newLevel > State.level) { State.level = newLevel; if(State.level > C.MAX_LEVEL) { UI.gameOver(true); return; } }
+    updateAll(dt) {
+        let dtMod = State.modSpeed; dt *= dtMod;
+        State.time += dt; State.frames += dt;
+        this.spawnLogic(dt);
 
-        this.spawnLogic(actualDt); this.player.update(actualDt);
-        this.entities.enemies.forEach(e => e.update(actualDt));
-        this.entities.projectiles.forEach(p => p.update(actualDt));
-        this.entities.particles.forEach(p => p.update(actualDt));
-        this.entities.texts.forEach(t => t.update(actualDt));
+        this.player.update(dt);
+        this.entities.enemies.forEach(e => e.update(dt));
+        this.entities.projectiles.forEach(p => p.update(dt));
+        this.entities.particles.forEach(pt => pt.update(dt));
+        this.entities.texts.forEach(t => t.update(dt));
 
         this.checkCollisions();
 
-        this.entities.enemies = this.entities.enemies.filter(e => e.hp > 0);
         this.entities.particles = this.entities.particles.filter(p => p.life > 0);
         this.entities.texts = this.entities.texts.filter(t => t.life > 0);
-        UI.updateHUD();
     },
 
-    draw() {
-        this.ctx.fillStyle = '#ffffff'; this.ctx.fillRect(0, 0, C.W, C.H);
-        
-        // 简易横切实黑防线
-        this.ctx.strokeStyle = '#0f172a'; this.ctx.lineWidth = 3;
-        this.ctx.beginPath(); this.ctx.moveTo(0, C.PLAYER_Y - 10); this.ctx.lineTo(C.W, C.PLAYER_Y - 10); this.ctx.stroke();
+    drawAll() {
+        const ctx = this.ctx;
+        ctx.clearRect(0,0,C.W,C.H);
 
-        this.entities.particles.forEach(p => p.draw(this.ctx));
-        this.entities.enemies.forEach(e => e.draw(this.ctx));
-        this.entities.projectiles.forEach(p => p.draw(this.ctx));
-        this.player.draw(this.ctx);
-        this.entities.texts.forEach(t => t.draw(this.ctx));
+        this.player.draw(ctx);
+        this.entities.enemies.forEach(e => e.draw(ctx));
+        this.entities.projectiles.forEach(p => p.draw(ctx));
+        this.entities.particles.forEach(pt => pt.draw(ctx));
+        this.entities.texts.forEach(t => t.draw(ctx));
     },
 
-    loop(timestamp) { this.update(1); this.draw(); requestAnimationFrame(t => this.loop(t)); }
-};
-
-// --- UI 控制面板 ---
-const UI = {
-    initBindings() {
-        const bindSlider = (id, prop, valId) => {
-            document.getElementById(id).addEventListener('input', (e) => {
-                let val = parseFloat(e.target.value);
-                if(prop.startsWith('Asset')) { AssetEngine[prop.split('.')[1]] = val; } 
-                else { State[prop] = val; }
-                document.getElementById(valId).innerText = (prop==='baseAtk' || prop.includes('chroma')) ? val : val.toFixed(1) + 'x';
-            });
-        };
-        bindSlider('slider-speed', 'modSpeed', 'val-speed');
-        bindSlider('slider-spawn', 'modSpawn', 'val-spawn');
-        bindSlider('slider-mspeed', 'modMSpd', 'val-mspeed');
-        bindSlider('slider-mhp', 'modMhp', 'val-mhp');
-        bindSlider('slider-atk', 'baseAtk', 'val-atk');
-        bindSlider('slider-chroma', 'AssetEngine.chromaThreshold', 'val-chroma');
-
-        document.getElementById('btn-start').onclick = () => { State.running = true; State.paused = false; document.getElementById('message-layer').style.opacity = 0; };
-        document.getElementById('btn-pause').onclick = () => { State.paused = !State.paused; };
-        document.getElementById('btn-reset').onclick = () => { State.reset(); State.running = true; document.getElementById('message-layer').style.opacity = 0;};
-    },
-
-    getSkillIconHtml(skill) {
-        let customImg = AssetEngine.images[skill.category];
-        if (customImg) return `<img src="${customImg.src}" alt="${skill.name}">`;
-        return skill.icon;
-    },
-
-    updateHUD() {
-        document.getElementById('exp-bar').style.width = `${Math.min(100, (State.xp / State.xpReq) * 100)}%`;
-        document.getElementById('hp-bar').style.width = `${Math.max(0, (State.hp / State.baseHp) * 100)}%`;
-        document.getElementById('level-text').innerText = `第 ${State.level} 关`;
-        document.getElementById('score-text').innerText = `击杀: ${State.kills}`;
-        let m = Math.floor(State.time / 60).toString().padStart(2, '0'); let s = (State.time % 60).toString().padStart(2, '0');
-        document.getElementById('time-text').innerText = `${m}:${s}`;
-    },
-
-    updateSkillPanel() {
-        let html = '';
-        for(let key in State.skills) {
-            let lv = State.skills[key];
-            if(lv > 0) html += `<span class="skill-badge">${this.getSkillIconHtml(SKILL_DB[key])} ${SKILL_DB[key].name} Lv.${lv}</span>`;
-        }
-        document.getElementById('skill-status').innerHTML = html || '暂未解锁任何技能树词条...';
-    },
-
-    showLevelUp() {
-        State.paused = true;
-        const modal = document.getElementById('modal-overlay'); const container = document.getElementById('level-up-modal');
-        container.innerHTML = '';
-        
-        let pool = Object.keys(SKILL_DB).filter(k => State.skills[k] < SKILL_DB[k].maxLv);
-        if(pool.length === 0) { State.hp = Math.min(State.baseHp, State.hp + 200); State.paused = false; return; }
-
-        pool.sort(() => Math.random() - 0.5); let choices = pool.slice(0, Math.min(3, pool.length));
-
-        choices.forEach(key => {
-            let skill = SKILL_DB[key]; let nextLv = State.skills[key] + 1; let desc = skill.descs[nextLv - 1];
-            let card = document.createElement('div'); card.className = 'skill-card';
-            card.innerHTML = `
-                <div class="skill-icon">${this.getSkillIconHtml(skill)}</div>
-                <div class="skill-info">
-                    <div class="skill-name">${skill.name}</div>
-                    <div class="skill-desc">${desc}</div>
-                </div>
-                <div class="skill-lv">Lv.${nextLv}</div>
-            `;
-            card.onclick = () => { State.skills[key]++; this.updateSkillPanel(); modal.style.display = 'none'; State.paused = false; };
-            container.appendChild(card);
-        });
-        modal.style.display = 'flex';
-    },
-
-    gameOver(isWin) {
-        State.running = false; const msg = document.getElementById('message-layer');
-        msg.innerText = isWin ? "🎉 守护神迹！完美通关！" : "💀 城堡陷落，国王阵亡！";
-        msg.style.color = '#000000'; msg.style.opacity = 1;
+    loop(timestamp) {
+        if(!State.paused && State.running) this.updateAll(1);
+        this.drawAll();
+        requestAnimationFrame(t => this.loop(t));
     }
 };
 
-window.onload = () => { Engine.init(); };
+// --- UI 交互 ---
+const UI = {
+    initBindings() {
+        const sSpeed = document.getElementById('slider-speed');
+        const sSpawn = document.getElementById('slider-spawn');
+        const sMSpd = document.getElementById('slider-mspeed');
+        const sMhp = document.getElementById('slider-mhp');
+        const sAtk = document.getElementById('slider-atk');
+
+        sSpeed.oninput = () => {
+            State.modSpeed = parseFloat(sSpeed.value);
+            document.getElementById('val-speed').textContent = State.modSpeed.toFixed(1)+'x';
+        };
+        sSpawn.oninput = () => {
+            State.modSpawn = parseFloat(sSpawn.value);
+            document.getElementById('val-spawn').textContent = State.modSpawn.toFixed(1)+'x';
+        };
+        sMSpd.oninput = () => {
+            State.modMSpd = parseFloat(sMSpd.value);
+            document.getElementById('val-mspeed').textContent = State.modMSpd.toFixed(1)+'x';
+        };
+        sMhp.oninput = () => {
+            State.modMhp = parseFloat(sMhp.value);
+            document.getElementById('val-mhp').textContent = State.modMhp.toFixed(1)+'x';
+        };
+        sAtk.oninput = () => {
+            State.baseAtk = parseInt(sAtk.value);
+            document.getElementById('val-atk').textContent = State.baseAtk;
+        };
+
+        document.getElementById('btn-start').onclick = () => {
+            State.running = true; State.paused = false;
+        };
+        document.getElementById('btn-pause').onclick = () => {
+            State.paused = !State.paused;
+        };
+        document.getElementById('btn-reset').onclick = () => {
+            State.running = false; State.paused = false;
+            State.reset();
+        };
+    },
+
+    updateHUD() {
+        document.getElementById('level-text').textContent = `第 ${State.level} 关`;
+        document.getElementById('score-text').textContent = `击杀: ${State.kills}`;
+        let m = Math.floor(State.time / 60);
+        let s = Math.floor(State.time % 60);
+        document.getElementById('time-text').textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+
+        let hpPct = State.hp / State.baseHp * 100;
+        document.getElementById('hp-bar').style.width = hpPct + '%';
+        let xpPct = State.xp / State.xpReq * 100;
+        document.getElementById('exp-bar').style.width = xpPct + '%';
+    },
+
+    updateSkillPanel() {
+        const wrap = document.getElementById('skill-status');
+        let html = '';
+        for(let key in State.skills) {
+            let lv = State.skills[key];
+            if(lv <= 0) continue;
+            let info = SKILL_DB[key];
+            html += `<div class="skill-badge">${info.icon} ${info.name} Lv.${lv}</div>`;
+        }
+        wrap.innerHTML = html || '等待战斗爆发升级...';
+    },
+
+    showLevelUp() {
+        State.level++;
+        const modal = document.getElementById('level-up-modal');
+        modal.innerHTML = '';
+        let pool = [];
+        for(let k in SKILL_DB) {
+            let sk = SKILL_DB[k];
+            if(State.skills[k] < sk.maxLv) pool.push({key:k, ...sk});
+        }
+        let pick = [];
+        while(pool.length > 0 && pick.length < 3) {
+            let idx = Math.floor(Math.random() * pool.length);
+            pick.push(pool.splice(idx,1)[0]);
+        }
+        pick.forEach(sk => {
+            let div = document.createElement('div');
+            div.className = 'skill-card';
+            div.innerHTML = `
+                <div class="skill-icon">${sk.icon}</div>
+                <div class="skill-info">
+                    <div class="skill-name">${sk.name}</div>
+                    <div class="skill-desc">${sk.descs[State.skills[sk.key]]}</div>
+                </div>
+                <div class="skill-lv">Lv.${State.skills[sk.key]+1}</div>
+            `;
+            div.onclick = () => {
+                State.skills[sk.key]++;
+                document.getElementById('modal-overlay').style.display = 'none';
+                UI.updateSkillPanel();
+            };
+            modal.appendChild(div);
+        });
+        document.getElementById('modal-overlay').style.display = 'flex';
+    },
+
+    gameOver() {
+        State.running = false;
+        const msg = document.getElementById('message-layer');
+        msg.style.opacity = 1;
+        setTimeout(()=>{ msg.style.opacity = 0; }, 2500);
+    }
+};
+
+window.onload = () => {
+    Engine.init();
+};
 </script>
 </body>
 </html>
