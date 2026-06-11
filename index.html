@@ -288,10 +288,10 @@ const MathUtil = {
 const State = {
     running: false, paused: false, time: 0, frames: 0,
     level: 1, kills: 0, xp: 0, xpReq: 100,
-    baseHp: 1000, hp: 1000, baseAtk: 100, baseFireRate: 45,
+    baseHp: 10000, hp: 10000, baseAtk: 200, baseFireRate: 45,
     skills: { atkSpeed: 0, pierce: 0, explosion: 0, bounce: 0, split: 0, volley: 0, damage: 0, slow: 0, fireball: 0 },
     
-    modSpeed: 3.0, modSpawn: 3.0, modMSpd: 0.2, modMhp: 5.0,
+    modSpeed: 3.0, modSpawn: 3.0, modMSpd: 0.2, modMhp: 1.0,
 
     reset() {
         this.level = 1; this.kills = 0; this.xp = 0; this.xpReq = 100;
