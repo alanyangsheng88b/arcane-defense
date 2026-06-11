@@ -168,27 +168,6 @@
     <!-- 右侧控制面板 -->
     <div id="control-panel">
         <div class="panel-section">
-            <h3>控制台 (Admin Panel)</h3>
-            <div class="control-row">
-                <div class="control-row-header"><span>游戏运行速度</span><span id="val-speed" class="value">1.0x</span></div>
-                <input type="range" id="slider-speed" min="0.5" max="3" step="0.1" value="1.0">
-            </div>
-            <div class="control-row">
-                <div class="control-row-header"><span>敌人刷新频率</span><span id="val-spawn" class="value">1.0x</span></div>
-                <input type="range" id="slider-spawn" min="0.2" max="3" step="0.1" value="1.0">
-            </div>
-            <div class="control-row">
-                <div class="control-row-header"><span>怪物移动速度</span><span id="val-mspeed" class="value">1.0x</span></div>
-                <input type="range" id="slider-mspeed" min="0.2" max="3" step="0.1" value="1.0">
-            </div>
-            <div class="control-row">
-                <div class="control-row-header"><span>怪物血量倍率</span><span id="val-mhp" class="value">1.0x</span></div>
-                <input type="range" id="slider-mhp" min="0.5" max="5" step="0.5" value="1.0">
-            </div>
-            <div class="control-row">
-                <div class="control-row-header"><span>国王初始伤害</span><span id="val-atk" class="value">10</span></div>
-                <input type="range" id="slider-atk" min="5" max="100" step="5" value="10">
-            </div>
             <div class="btn-group">
                 <button id="btn-start" class="primary">开始</button>
                 <button id="btn-pause">暂停</button>
@@ -309,10 +288,10 @@ const MathUtil = {
 const State = {
     running: false, paused: false, time: 0, frames: 0,
     level: 1, kills: 0, xp: 0, xpReq: 100,
-    baseHp: 1000, hp: 1000, baseAtk: 10, baseFireRate: 45,
+    baseHp: 1000, hp: 1000, baseAtk: 100, baseFireRate: 45,
     skills: { atkSpeed: 0, pierce: 0, explosion: 0, bounce: 0, split: 0, volley: 0, damage: 0, slow: 0, fireball: 0 },
     
-    modSpeed: 1.0, modSpawn: 1.0, modMSpd: 1.0, modMhp: 1.0,
+    modSpeed: 3.0, modSpawn: 3.0, modMSpd: 0.2, modMhp: 5.0,
 
     reset() {
         this.level = 1; this.kills = 0; this.xp = 0; this.xpReq = 100;
@@ -614,7 +593,6 @@ const Engine = {
 
     init() {
         this.canvas = document.getElementById('gameCanvas'); this.ctx = this.canvas.getContext('2d');
-        State.baseAtk = parseInt(document.getElementById('slider-atk').value);
         State.reset(); this.player = new Player();
         UI.initBindings();
         
@@ -718,33 +696,6 @@ const Engine = {
 // --- UI 交互 ---
 const UI = {
     initBindings() {
-        const sSpeed = document.getElementById('slider-speed');
-        const sSpawn = document.getElementById('slider-spawn');
-        const sMSpd = document.getElementById('slider-mspeed');
-        const sMhp = document.getElementById('slider-mhp');
-        const sAtk = document.getElementById('slider-atk');
-
-        sSpeed.oninput = () => {
-            State.modSpeed = parseFloat(sSpeed.value);
-            document.getElementById('val-speed').textContent = State.modSpeed.toFixed(1)+'x';
-        };
-        sSpawn.oninput = () => {
-            State.modSpawn = parseFloat(sSpawn.value);
-            document.getElementById('val-spawn').textContent = State.modSpawn.toFixed(1)+'x';
-        };
-        sMSpd.oninput = () => {
-            State.modMSpd = parseFloat(sMSpd.value);
-            document.getElementById('val-mspeed').textContent = State.modMSpd.toFixed(1)+'x';
-        };
-        sMhp.oninput = () => {
-            State.modMhp = parseFloat(sMhp.value);
-            document.getElementById('val-mhp').textContent = State.modMhp.toFixed(1)+'x';
-        };
-        sAtk.oninput = () => {
-            State.baseAtk = parseInt(sAtk.value);
-            document.getElementById('val-atk').textContent = State.baseAtk;
-        };
-
         document.getElementById('btn-start').onclick = () => {
             State.running = true; State.paused = false;
         };
